@@ -15,6 +15,9 @@ import requests
 from Core.Commands.Dispatcher import DispatcherSingleton
 from Core.Util import UtilBot
 from Libraries import Genius
+#lunsj command
+from html.parser import HTMLParser
+import urllib.request, urllib.error, urllib.parse
 
 
 reminders = []
@@ -475,3 +478,84 @@ def quote(bot, event, *args):
                 fetch) + ' of ' + str(numQuotes) + ']')
         else:
             bot.send_message(event.conv, "\"" + soup.quote.text + "\"" + ' -' + soup.author.text)
+			
+
+@DispatcherSingleton.register
+def lunsj(bot, event, *args):
+	#Fredrikke cafe url
+	urlFred = 'http://www.sio.no/wps/portal/!ut/p/c5/04_SB8K8xLLM9MSSzPy8xBz9CP0os3gDfwNvJ0dTP0NXAyNDA38TC3cDKADKR2LKmyDkidGNAzgS0h0Oci1-28HyuM3388jPTdUvyA2NMMgyUQQAAcWpkQ!!/dl3/d3/L0lDU0lKSWdrbUEhIS9JRFJBQUlpQ2dBek15cXchLzRCRWo4bzBGbEdpdC1iWHBBRUEhLzdfME8wS0JBNU4xRTBNSDJWMzVQMDAwMDAwMDAvTDNsVTY4MTgyMDAwMQ!!/?WCM_PORTLET=PC_7_0O0KBA5N1E0MH2V35P00000000000000_WCM&WCM_GLOBAL_CONTEXT=/wps/wcm/connect/migration/sio/mat+og+drikke/dagens+middag/frederikke+kafe+meny'
+	#IFI cafe url
+	urlIFI = 'http://www.sio.no/wps/portal/!ut/p/c5/04_SB8K8xLLM9MSSzPy8xBz9CP0os3gDfwNvJ0dTP0NXAyNDA38TC3cDKADKR2LKmyDkidGNAzgS0h0Oci1-28HyuM3388jPTdUvyA2NMMgyUQQAAcWpkQ!!/dl3/d3/L0lDU0lKSWdrbUEhIS9JRFJBQUlpQ2dBek15cXchLzRCRWo4bzBGbEdpdC1iWHBBRUEhLzdfME8wS0JBNU4xRTBNSDJWMzVQMDAwMDAwMDAvU3c3MFk5NzgyMDAwNw!!/?WCM_PORTLET=PC_7_0O0KBA5N1E0MH2V35P00000000000000_WCM&WCM_GLOBAL_CONTEXT=/wps/wcm/connect/migration/sio/mat+og+drikke/dagens+middag/informatikkafeen+ny'
+
+	class MLStripper(HTMLParser):
+		def __init__(self):
+			super().__init__()
+			self.reset()
+			self.fed = []
+		def handle_data(self, d):
+			self.fed.append(d)
+		def get_data(self):
+			return self.fed
+
+	#Strips tags from given html
+	def strip_tags(html):
+		s = MLStripper()
+		s.feed(html)
+		return s.get_data()
+
+	#Format function for fredrikke
+	#Returns  a formatted string
+	def format_fred(data):
+		for i in range(len(data)):
+			#data[i] = data[i].encode('iso-8859-15', 'ignore') if characters bugs
+			if data[i][0].isupper():
+					data[i] = '\n' + data[i]
+		return ''.join(data)
+
+	#Format function for fredrikke
+	#Returns a formatted string.
+	def format_ifi(data):
+		#.encode('utf8', 'ignore') if characters bugs
+		data = [x for x in data if x not in ['\n', '\xc2\xa0', '\xa0', 'Dagens: ', 'Vegetar:']]
+		days = data[:5]
+		food = data[5:]
+		food.append("No veggie today D:")
+
+		#result = {}
+		resultStr = ""
+		for i in range(len(days)):
+			resultStr += days[i] + ":\n" + "\tDagens : " + food[i*2] + "\n\tVegetar: " + food[i*2+1] + "\n\n"
+			#result[days[i]] = (food[i*2], food[i*2+1])
+		return resultStr
+			
+
+
+	url = urlFred
+	format_func = format_fred
+	if len(args) < 1:
+		bot.send_message(event.conv, "//lunsj IFI(Informatikkafeen) or Fred(Frederikke kafe)")
+		return
+	elif args[0].lower() == "ifi":
+		url = urlIFI
+		format_func = format_ifi
+	elif args[0].lower() == "fred":
+		url = urlFred
+		format_func = format_fred
+		
+	#Opens given url and returns html
+	page = urllib.request.urlopen(url, timeout=10)
+	#Html parsing
+	soup = BeautifulSoup(page)
+
+	#Finds the data we are looking for and feeds that to the formatting function.
+	divtag = soup.find_all('div', {'class': 'sioArticleBodyText'})
+	if len(divtag) > 0:
+		tabletag = divtag[0].find_all('table')
+		trtag = tabletag[0].find_all('tr')	
+		text = str.join('',list(map(str,trtag)))
+		data = strip_tags(text)
+		bot.send_message(event.conv, format_func(data))
+	else:
+		bot.send_message(event.conv, "Page Error :SSSS")
+	page.close()
+
