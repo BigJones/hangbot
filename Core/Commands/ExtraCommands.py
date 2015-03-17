@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 from datetime import timedelta, datetime
 from fractions import Fraction
 import glob
@@ -523,8 +524,10 @@ def lunsj(bot, event, *args):
 
 		#result = {}
 		resultStr = ""
-		for i in range(len(days)):
-			resultStr += days[i] + ":\n" + "\tDagens : " + food[i*2] + "\n\tVegetar: " + food[i*2+1] + "\n\n"
+		day = datetime.today().weekday()
+		resultStr += days[day] + ":\n" + "\tDagens : " + food[day*2] + "\n\tVegetar: " + food[day*3+1] + "\n\n"
+		#for i in range(len(days)):
+			#resultStr += days[i] + ":\n" + "\tDagens : " + food[i*2] + "\n\tVegetar: " + food[i*2+1] + "\n\n"
 			#result[days[i]] = (food[i*2], food[i*2+1])
 		return resultStr
 			
