@@ -483,20 +483,37 @@ def quote(bot, event, *args):
 
 @DispatcherSingleton.register
 def lunsj(bot, event, *args):
+
+	usage = [	hangups.ChatMessageSegment('USAGE:', is_bold=True),
+				hangups.ChatMessageSegment('\n', hangups.SegmentType.LINE_BREAK),
+				hangups.ChatMessageSegment('/lunsj ifi <optional: dagens/vegetar/halal> (Informatikkafeen)'),
+				hangups.ChatMessageSegment('\n', hangups.SegmentType.LINE_BREAK),
+				hangups.ChatMessageSegment('/lunsj fred (Frederikke spiseri)')
+			]
 	#Fredrikke cafe url
-	urlFred = 'http://www.sio.no/wps/portal/!ut/p/c5/04_SB8K8xLLM9MSSzPy8xBz9CP0os3gDfwNvJ0dTP0NXAyNDA38TC3cDKADKR2LKmyDkidGNAzgS0h0Oci1-28HyuM3388jPTdUvyA2NMMgyUQQAAcWpkQ!!/dl3/d3/L0lDU0lKSWdrbUEhIS9JRFJBQUlpQ2dBek15cXchLzRCRWo4bzBGbEdpdC1iWHBBRUEhLzdfME8wS0JBNU4xRTBNSDJWMzVQMDAwMDAwMDAvTDNsVTY4MTgyMDAwMQ!!/?WCM_PORTLET=PC_7_0O0KBA5N1E0MH2V35P00000000000000_WCM&WCM_GLOBAL_CONTEXT=/wps/wcm/connect/migration/sio/mat+og+drikke/dagens+middag/frederikke+kafe+meny'
+	urlFred = 'http://www.sio.no/wps/portal/!ut/p/c5/04_SB8K8xLLM9MSSzPy8xBz9CP0os3gDfwNvJ0dTP0NXAyNDA38TC3cDKADKR2LKmyDkidGNAzgS0h0Oci1-28HyuM3388jPTdUvyA2NMMgyUQQAAcWpkQ!!/dl3/d3/L0lDU0lKSWdrbUEhIS9JRFJBQUlpQ2dBek15cXchLzRCRWo4bzBGbEdpdC1iWHBBRUEhLzdfME8wS0JBNU4xRTBNSDJWMzVQMDAwMDAwMDAvN2x0YlQ2Mzk3MDAxOQ!!/?WCM_PORTLET=PC_7_0O0KBA5N1E0MH2V35P00000000000000_WCM&WCM_GLOBAL_CONTEXT=/wps/wcm/connect/migration/sio/mat+og+drikke/dagens+middag/frederikke+spiseri'
 	#IFI cafe url
-	urlIFI = 'http://www.sio.no/wps/portal/!ut/p/c5/04_SB8K8xLLM9MSSzPy8xBz9CP0os3gDfwNvJ0dTP0NXAyNDA38TC3cDKADKR2LKmyDkidGNAzgS0h0Oci1-28HyuM3388jPTdUvyA2NMMgyUQQAAcWpkQ!!/dl3/d3/L0lDU0lKSWdrbUEhIS9JRFJBQUlpQ2dBek15cXchLzRCRWo4bzBGbEdpdC1iWHBBRUEhLzdfME8wS0JBNU4xRTBNSDJWMzVQMDAwMDAwMDAvU3c3MFk5NzgyMDAwNw!!/?WCM_PORTLET=PC_7_0O0KBA5N1E0MH2V35P00000000000000_WCM&WCM_GLOBAL_CONTEXT=/wps/wcm/connect/migration/sio/mat+og+drikke/dagens+middag/informatikkafeen+ny'
+	urlIFI = 'http://www.sio.no/wps/portal/!ut/p/c5/04_SB8K8xLLM9MSSzPy8xBz9CP0os3gDfwNvJ0dTP0NXAyNDA38TC3cDKADKR2LKmyDkidGNAzgS0h0Oci1-28HyuM3388jPTdUvyA2NMMgyUQQAAcWpkQ!!/dl3/d3/L0lDU0lKSWdrbUEhIS9JRFJBQUlpQ2dBek15cXchLzRCRWo4bzBGbEdpdC1iWHBBRUEhLzdfME8wS0JBNU4xRTBNSDJWMzVQMDAwMDAwMDAvN2x0YlQ2Mzk3MDAxOQ!!/?WCM_PORTLET=PC_7_0O0KBA5N1E0MH2V35P00000000000000_WCM&WCM_GLOBAL_CONTEXT=/wps/wcm/connect/migration/sio/mat+og+drikke/dagens+middag/informatikkafeen'
 
 	class MLStripper(HTMLParser):
 		def __init__(self):
 			super().__init__()
 			self.reset()
 			self.fed = []
+			self.addFlag = False
 		def handle_data(self, d):
-			self.fed.append(d)
+			if self.addFlag:
+				self.fed[-1] += d
+				self.addFlag = False
+			else:
+				self.fed.append(d)
+		def handle_entityref(self, ref):
+			self.fed[-1] += self.unescape("&%s;" % ref)
+			self.addFlag = True
 		def get_data(self):
 			return self.fed
+			
+	enToNo = {'Monday':'Mandag', 'Tuesday':'Tirsdag', 'Wednesday':'Onsdag', 'Thursay':'Torsdag', 'Friday':'Fredag'}
 
 	#Strips tags from given html
 	def strip_tags(html):
@@ -507,11 +524,23 @@ def lunsj(bot, event, *args):
 	#Format function for fredrikke
 	#Returns  a formatted string
 	def format_fred(data):
-		for i in range(len(data)):
-			#data[i] = data[i].encode('iso-8859-15', 'ignore') if characters bugs
-			if data[i][0].isupper():
-					data[i] = '\n' + data[i]
-		return ''.join(data)
+		tmp = [x for x in data if x not in ['\n']]
+		dict = {}
+		iD = tmp.index("Dagens:")
+		iV = tmp.index("Vegetar: ")
+		iH = tmp.index("Halal:")
+		
+		dict[tmp[:iV][0][:-1].lower()] = tmp[:iV][1:]
+		dict[tmp[iV:][0][:-2].lower()] = tmp[iV:iH][1:]
+		dict[tmp[iH:][0][:-1].lower()] = tmp[iH:][1:]
+		
+		segments = [	hangups.ChatMessageSegment(args[1].upper() + ":", is_bold=True),
+						hangups.ChatMessageSegment('\n', hangups.SegmentType.LINE_BREAK)
+					]
+		for i in dict[args[1].lower()]:
+			segments.append(hangups.ChatMessageSegment(i))
+			segments.append(hangups.ChatMessageSegment('\n', hangups.SegmentType.LINE_BREAK))
+		return segments
 
 	#Format function for fredrikke
 	#Returns a formatted string.
@@ -522,26 +551,33 @@ def lunsj(bot, event, *args):
 		food = data[5:]
 		food.append("No veggie today D:")
 
-		#result = {}
-		resultStr = ""
-		day = datetime.today().weekday()
-		resultStr += days[day] + ":\n" + "\tDagens : " + food[day*2] + "\n\tVegetar: " + food[day*3+1] + "\n\n"
-		#for i in range(len(days)):
+		result = {}
+		day = datetime.today().strftime("%A")
+		#resultStr = ""
+		for i in range(len(days)):
 			#resultStr += days[i] + ":\n" + "\tDagens : " + food[i*2] + "\n\tVegetar: " + food[i*2+1] + "\n\n"
-			#result[days[i]] = (food[i*2], food[i*2+1])
-		return resultStr
+			result[days[i]] = (food[i*2], food[i*2+1])
 			
-
+		segments = [	hangups.ChatMessageSegment(enToNo[day], is_bold=True),
+						hangups.ChatMessageSegment('\n', hangups.SegmentType.LINE_BREAK),
+						hangups.ChatMessageSegment('\tDagens : ' + result[enToNo[day]][0]),
+						hangups.ChatMessageSegment('\n', hangups.SegmentType.LINE_BREAK),
+						hangups.ChatMessageSegment('\tVegetar: ' + result[enToNo[day]][1]),
+					]
+		return segments
 
 	url = urlFred
 	format_func = format_fred
 	if len(args) < 1:
-		bot.send_message(event.conv, "//lunsj IFI(Informatikkafeen) or Fred(Frederikke kafe)")
+		bot.send_message_segments(event.conv, usage)
 		return
 	elif args[0].lower() == "ifi":
 		url = urlIFI
 		format_func = format_ifi
 	elif args[0].lower() == "fred":
+		if len(args) < 2 or args[1].lower() not in ['dagens', 'vegetar', 'halal']:
+			bot.send_message_segments(event.conv, usage)
+			return
 		url = urlFred
 		format_func = format_fred
 		
@@ -557,8 +593,18 @@ def lunsj(bot, event, *args):
 		trtag = tabletag[0].find_all('tr')	
 		text = str.join('',list(map(str,trtag)))
 		data = strip_tags(text)
-		bot.send_message(event.conv, format_func(data))
+		bot.send_message_segments(event.conv, format_func(data))
 	else:
-		bot.send_message(event.conv, "Page Error :SSSS")
+		print("ERROR")
 	page.close()
+	
+"""
+segments = [hangups.ChatMessageSegment('Quote', is_bold=True),
+                    hangups.ChatMessageSegment('\n', hangups.SegmentType.LINE_BREAK),
+                    hangups.ChatMessageSegment(
+                        'Usage: /quote <optional: terms to search for> <optional: number of quote to show>'),
+                    hangups.ChatMessageSegment('\n', hangups.SegmentType.LINE_BREAK),
+                    hangups.ChatMessageSegment('Purpose: Shows a quote.')]
+        bot.send_message_segments(event.conv, segments)
+"""
 
