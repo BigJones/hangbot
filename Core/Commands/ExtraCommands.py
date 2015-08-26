@@ -47,6 +47,10 @@ def bane(bot, event, *args):
 
 	bot.send_message_segments(event.conv, segments)
 	print("%s", args[0])
+	ruter_url = 'http://reisapi.ruter.no/stopvisit/getdepartures/3010370?json=true'
+	ruter_json = json.load(urllib2.urlopen(ruter_url))
+
+	print(ruter_json)
 
 	if args[0] == "west":
 		segments = [hangups.ChatMessageSegment("t-bane, west")]
