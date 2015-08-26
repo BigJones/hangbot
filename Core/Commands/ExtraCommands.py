@@ -41,23 +41,76 @@ def whatsnew(bot, event, *args):
 
 @DispatcherSingleton.register
 def bane(bot, event, *args):
-	segments = [	hangups.ChatMessageSegment("T-bane", is_bold=True),
-					hangups.ChatMessageSegment('\n', hangups.SegmentType.LINE_BREAK),
+	segments = [	hangups.ChatMessageSegment("T-bane", is_bold=True)
 				]	
 
 	bot.send_message_segments(event.conv, segments)
-	print("%s", args[0])
+	print(args[0])
 	ruter_url = 'http://reisapi.ruter.no/stopvisit/getdepartures/3010370?json=true'
-	ruter_json = json.load(urllib2.urlopen(ruter_url))
+	
+	request = urllib.request.Request(ruter_url)
 
-	print(ruter_json)
+	with urllib.request.urlopen(request) as response:
+		data = json.loads(response.readall().decode('utf-8'))
 
-	if args[0] == "west":
-		segments = [hangups.ChatMessageSegment("t-bane, west")]
-		bot.send_message_segments(event.conv, segments)
-	elif args[0] == "east": 
-		segments = [hangups.ChatMessageSegment("t-bane, east")]
-		bot.send_message_segments(event.conv, segments) 
+	#direction 1 == sentrum, 2 = sognsvann/ringen
+	print(data[0])
+
+	for each in data[0]:
+		print(data[0][each])
+
+	print(json.dumps(data[0]["MonitoredVehicleJourney"], indent=4))
+	direction = json.dumps(data[0]["MonitoredVehicleJourney"]["MonitoredCall"]["DeparturePlatformName"])
+	direction = direction[1]
+	info = json.loads( json.dumps(data[0]["MonitoredVehicleJourney"]["MonitoredCall"]))
+	print(json.dumps(info["ExpectedArrivalTime"]))
+	print(direction)
+
+	if args[0] == "n":
+		metro_depature(2, data, bot, event)
+			
+	elif args[0] == "s": 
+		metro_depature(1, data, bot, event)
+
+def metro_depature(line, data, bot, event):
+	i = 0; 
+	j = 0;
+
+	segments = [	hangups.ChatMessageSegment("Nord mot sognsvann"),
+			hangups.ChatMessageSegment('\n', hangups.SegmentType.LINE_BREAK)
+		]
+	print("LOOP")
+	while True:
+		direction = json.dumps(data[j]["MonitoredVehicleJourney"]["DirectionName"])
+		if(direction == "null"):
+			print("API ERROR")
+			segments += [ hangups.ChatMessageSegment("API ERROR")]
+			break
+
+		print(data[j]["MonitoredVehicleJourney"])
+		direction = direction[1]
+		if int(direction) == line:
+			print("YES")
+			info = json.loads( json.dumps(data[j]["MonitoredVehicleJourney"]["MonitoredCall"]))
+			segments += [	hangups.ChatMessageSegment(json.dumps(info["DestinationDisplay"])[1:-1]),
+					hangups.ChatMessageSegment(": "),
+					hangups.ChatMessageSegment(json.dumps(info["ExpectedDepartureTime"][11:-6])[1:-1]),
+					hangups.ChatMessageSegment('\n', hangups.SegmentType.LINE_BREAK)
+			]
+			i = i + 1
+		else: 
+			print("NO", i)
+
+		if(i > 2):
+			break;
+		
+		j = j + 1
+		if( j > 30):
+			break
+
+	print("DONE")
+	bot.send_message_segments(event.conv, segments)
+
 
 @DispatcherSingleton.register
 def udefine(bot, event, *args):
